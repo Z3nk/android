@@ -10,6 +10,7 @@ import fi.kroon.vadret.presentation.viewmodel.AlertViewModel
 import fi.kroon.vadret.presentation.viewmodel.LocationViewModel
 import fi.kroon.vadret.presentation.viewmodel.RadarViewModel
 import fi.kroon.vadret.presentation.viewmodel.WeatherViewModel
+import fi.kroon.vadret.presentation.viewmodel.NominatimViewModel
 
 @Module
 abstract class ViewModelModule {
@@ -25,6 +26,11 @@ abstract class ViewModelModule {
     @IntoMap
     @ViewModelKey(RadarViewModel::class)
     abstract fun bindsRadarViewModel(radarViewModel: RadarViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(NominatimViewModel::class)
+    abstract fun bindsNominatimViewModel(nominatimViewModel: NominatimViewModel): ViewModel
 
     @Binds
     @IntoMap

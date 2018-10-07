@@ -21,6 +21,14 @@ class AboutViewModel @Inject constructor(
 
     private val libraries = listOf(
         ThirdParty(
+            author = "© OpenStreetMap contributors",
+            title = "OpenStreetMap Nominatim",
+            description = "Nominatim (from the Latin, 'by name') is a tool to search OSM data by name and address and to generate synthetic addresses of OSM points (reverse geocoding). It can be found at nominatim.openstreetmap.org. ",
+            page = "http://nominatim.openstreetmap.org/",
+            source = "https://github.com/openstreetmap/Nominatim",
+            license = "https://operations.osmfoundation.org/policies/nominatim/"
+        ),
+        ThirdParty(
             author = "The Wikimedia Foundation",
             title = "Wikimedia Maps",
             description = "The Wikimedia Maps service is provided openly to the public free of charge.",

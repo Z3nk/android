@@ -5,7 +5,9 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.annotation.StringRes
+import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat.checkSelfPermission
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
@@ -15,14 +17,19 @@ import fi.kroon.vadret.data.exception.Either
 import fi.kroon.vadret.data.exception.Failure
 import fi.kroon.vadret.data.location.exception.LocationFailure
 import fi.kroon.vadret.data.location.model.Location
+import fi.kroon.vadret.data.nominatim.NominatimRequest
+import fi.kroon.vadret.data.nominatim.exception.NominatimFailure
+import fi.kroon.vadret.data.nominatim.model.Nominatim
 import fi.kroon.vadret.data.weather.WeatherMapper
 import fi.kroon.vadret.data.weather.exception.WeatherFailure
 import fi.kroon.vadret.data.weather.model.TimeSerie
 import fi.kroon.vadret.data.weather.model.Weather
 import fi.kroon.vadret.presentation.adapter.ForecastAdapter
 import fi.kroon.vadret.presentation.viewmodel.LocationViewModel
+import fi.kroon.vadret.presentation.viewmodel.NominatimViewModel
 import fi.kroon.vadret.presentation.viewmodel.WeatherViewModel
 import fi.kroon.vadret.utils.Schedulers
+import fi.kroon.vadret.utils.extensions.toInvisible
 import fi.kroon.vadret.utils.extensions.toVisible
 import fi.kroon.vadret.utils.extensions.viewModel
 import io.reactivex.rxkotlin.addTo
@@ -45,12 +52,14 @@ class WeatherFragment : BaseFragment() {
 
     private lateinit var weatherViewModel: WeatherViewModel
     private lateinit var locationViewModel: LocationViewModel
+    private lateinit var nominatimViewModel: NominatimViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         cmp.inject(this)
         weatherViewModel = viewModel(viewModelFactory) {}
         locationViewModel = viewModel(viewModelFactory) {}
+        nominatimViewModel = viewModel(viewModelFactory) {}
     }
 
     override fun onDestroyView() {
@@ -62,6 +71,61 @@ class WeatherFragment : BaseFragment() {
         super.onViewCreated(view, savedInstanceState)
         initialiseView()
         requestLocationPermission()
+        searchFab.setOnClickListener {
+            Timber.d("Search clicked!")
+            if (!nominatimSearch.isVisible) {
+                initialiseSearch()
+                nominatimSearch.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                    override fun onQueryTextSubmit(query: String?): Boolean {
+                        Timber.d("Submit clicked!")
+                        Timber.d("Query: $query")
+
+                        val request = NominatimRequest(city = query!!)
+
+                        if (!query.isEmpty())
+                            nominatimViewModel.get(request)
+                                .subscribeOn(schedulers.io())
+                                .observeOn(schedulers.ui())
+                                .onErrorReturn { _ -> Either.Left(NominatimFailure.NominatimNotAvailable()) }
+                                .subscribe(::searchHandler)
+                                .addTo(subscriptions)
+                            // when result is fetched, we hit the displayResult()
+                        return false
+                    }
+
+                    override fun onQueryTextChange(newText: String): Boolean {
+                        Timber.d("Text changed: $newText")
+                        return true
+                    }
+                })
+            } else {
+                nominatimSearch.toInvisible()
+            }
+        }
+    }
+
+    private fun searchHandler(data: Either<Failure, List<Nominatim>>) {
+        data.either(::handleFailure, ::handleSearch)
+    }
+
+    private fun handleSearch(nominatim: List<Nominatim>) {
+        // set searchRecyclerView.visible
+        // set data = collection
+        Timber.d("license: ${nominatim[0].licence}")
+        Timber.d("osmType: ${nominatim[0].osmType}")
+        Timber.d("osmId: ${nominatim[0].osmId}")
+        Timber.d("lat: ${nominatim[0].lat}")
+        Timber.d("lon: ${nominatim[0].lon}")
+        Timber.d("displayName: ${nominatim[0].displayName}")
+
+        searchResultRv.toVisible()
+    }
+
+    private fun initialiseSearch() {
+        nominatimSearch.toVisible()
+        nominatimSearch.setFocusable(true)
+        nominatimSearch.setIconifiedByDefault(false)
+        nominatimSearch.requestFocusFromTouch()
     }
 
     private fun initialiseView() {
@@ -121,6 +185,7 @@ class WeatherFragment : BaseFragment() {
             is Failure.NetworkOfflineFailure -> renderFailure(R.string.no_network_available)
             is LocationFailure.NoLocationPermissions -> renderFailure(R.string.no_location_permission)
             is LocationFailure.LocationNotAvailableFailure -> renderFailure(R.string.location_failure)
+            is NominatimFailure.NominatimNotAvailable -> renderFailure(R.string.search_failed)
         }
     }
 

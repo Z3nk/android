@@ -1,0 +1,1 @@
+package fi.kroon.vadret.data.nominatim
